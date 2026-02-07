@@ -41,7 +41,7 @@ class QdrantVectorStore:
             collection_name = f"sinhala_{domain}"
             try:
                 self.qdrant.get_collection(collection_name)
-            except (RuntimeError, KeyError):
+            except (RuntimeError, KeyError, ValueError):
                 # Collection doesn't exist, create it
                 self.qdrant.create_collection(
                     collection_name=collection_name,

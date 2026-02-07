@@ -9,17 +9,21 @@ from google import genai
 
 from .models import FactCheckState
 from .vector_store import QdrantVectorStore
-from .search import MultiSourceSearch
 from .gemini_router import GeminiRouter
+from .mcp.server import MCPServer
+from .mcp.client import MCPClient
 
 
 class FactCheckingWorkflow:
     """LangGraph-based fact checking workflow with 4-Agent Architecture."""
     
-    def __init__(self, vector_store: QdrantVectorStore, search: MultiSourceSearch, client=None):
+    def __init__(self, vector_store: QdrantVectorStore, client=None):
         """Initialize workflow with dependencies."""
         self.vector_store = vector_store
-        self.search = search
+        # Initialize MCP Architecture
+        self.mcp_server = MCPServer()
+        self.mcp_client = MCPClient(self.mcp_server)
+        
         self.client = client or genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.router = GeminiRouter(client=self.client)
         self.workflow = self._create_workflow()
@@ -48,7 +52,7 @@ class FactCheckingWorkflow:
         return state
     
     def _retrieval_agent(self, state: FactCheckState) -> FactCheckState:
-        """Agent 2: Data Retrieval Agent (Vector + Web)."""
+        """Agent 2: Data Retrieval Agent (Vector + Web via MCP)."""
         # 1. Search Vector Store (Historical/Context)
         docs = self.vector_store.search(
             state["statement"],
@@ -56,9 +60,10 @@ class FactCheckingWorkflow:
             limit=3
         )
         
-        # 2. Web Search (Real-time)
-        # We always perform web search to ensure up-to-date information for "viral" misinformation.
-        search_res = self.search.search(state["statement"])
+        # 2. Web Search via MCP Client
+        # The agent uses the MCP Client to call the 'search_web' tool.
+        # This follows the MCP architecture: Agent -> Client -> Server -> Tool.
+        search_res = self.mcp_client.call_tool("search_web", {"query": state["statement"]})
         
         state["retrieved_docs"] = docs
         state["search_results"] = search_res.get("results", [])
@@ -170,7 +175,7 @@ class FactCheckingWorkflow:
             "search_results": [],
             "analysis": "",
             "verdict": "",
-            "method_used": "4-agent-workflow",
+            "method_used": "4-agent-workflow-mcp",
             "sufficiency": None,
             "search_source": None,
             "cached": False

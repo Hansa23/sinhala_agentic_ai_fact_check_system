@@ -33,14 +33,12 @@ def initialize():
     
     # Initialize components
     vector_store = QdrantVectorStore(qdrant_path)
-    search = MultiSourceSearch()
-    workflow = FactCheckingWorkflow(vector_store, search, client=client)
+    workflow = FactCheckingWorkflow(vector_store, client=client)
     cache = SimpleCache(ttl_hours=24)
     async_checker = AsyncFactChecker(workflow, max_concurrent=10)
     
     return {
         "vector_store": vector_store,
-        "search": search,
         "workflow": workflow,
         "cache": cache,
         "async_checker": async_checker

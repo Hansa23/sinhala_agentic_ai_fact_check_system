@@ -16,7 +16,7 @@ import os
 from dotenv import load_dotenv
 
 from src.vector_store import QdrantVectorStore
-from src.search import MultiSourceSearch
+from src.vector_store import QdrantVectorStore
 from src.workflow import FactCheckingWorkflow
 from src.cache import SimpleCache
 from src.gemini_router import GeminiRouter
@@ -39,13 +39,9 @@ def get_vector_store(storage_path: str) -> QdrantVectorStore:
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = get_vector_store(QDRANT_PATH)
 
-if "search" not in st.session_state:
-    st.session_state.search = MultiSourceSearch()
-
 if "workflow" not in st.session_state:
     st.session_state.workflow = FactCheckingWorkflow(
         st.session_state.vector_store,
-        st.session_state.search,
         client=client
     )
 
@@ -74,7 +70,7 @@ with st.sidebar:
     st.header("📊 System Status")
     
     # Search quota
-    quota = st.session_state.search.get_quota_status()
+    quota = st.session_state.workflow.mcp_client.get_server_status()
     st.subheader("Search Quota")
     col1, col2, col3 = st.columns(3)
     with col1:
